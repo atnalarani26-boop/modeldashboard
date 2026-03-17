@@ -296,21 +296,17 @@ if employee_name:
 
     if total > 0:
 
-        positive = int(report.iloc[0]["positive"])
-        neutral = int(report.iloc[0]["neutral"])
-        negative = int(report.iloc[0]["negative"])
+        positive = int(report.iloc[0]["positive"] or 0)
+        neutral = int(report.iloc[0]["neutral"] or 0)
+        negative = int(report.iloc[0]["negative"] or 0)
 
         # -----------------------------
-        # TOTAL DATASET SIZE
+        # TOTAL COMMENTS
         # -----------------------------
 
         total_comments = pd.read_sql("""
         SELECT COUNT(*) as total FROM comments
         """, conn).iloc[0]["total"]
-
-        # -----------------------------
-        # CALCULATIONS
-        # -----------------------------
 
         contribution = round((total / total_comments) * 100, 2) if total_comments > 0 else 0
 
@@ -319,7 +315,7 @@ if employee_name:
         neg_pct = round((negative / total) * 100, 1)
 
         # -----------------------------
-        # DISPLAY METRICS
+        # METRICS
         # -----------------------------
 
         col1, col2, col3, col4 = st.columns(4)
@@ -329,40 +325,49 @@ if employee_name:
         col3.metric("Neutral", f"{neutral} ({neu_pct}%)")
         col4.metric("Negative", f"{negative} ({neg_pct}%)")
 
-        # -----------------------------
-        # PROGRESS BAR
-        # -----------------------------
-
         st.progress(contribution / 100)
         st.write(f"📈 Contribution to dataset: **{contribution}%**")
 
         # -----------------------------
-        # EMPLOYEE DATA TABLE
+        # FIXED DATASET QUERY (KEY FIX)
         # -----------------------------
-
-        st.subheader("📝 Your Labeled Comments")
 
         dataset = pd.read_sql(f"""
-        SELECT comments.comment_text, labels.label
-        FROM labels
-        JOIN comments ON comments.id = labels.comment_id
-        WHERE labels.employee_name = '{employee_name}'
+        SELECT 
+            c.comment_text,
+            l.label
+        FROM labels l
+        LEFT JOIN comments c ON c.id = l.comment_id
+        WHERE l.employee_name = '{employee_name}'
+        AND c.comment_text IS NOT NULL
         """, conn)
 
-        st.dataframe(dataset)
+        # DEBUG (remove later if you want)
+        st.write("Rows fetched:", len(dataset))
 
         # -----------------------------
-        # DOWNLOAD REPORT
+        # DISPLAY TABLE
         # -----------------------------
 
-        csv = dataset.to_csv(index=False)
+        if len(dataset) > 0:
+            st.subheader("📝 Your Labeled Comments")
+            st.dataframe(dataset)
 
-        st.download_button(
-            "⬇️ Download My Report",
-            csv,
-            f"{employee_name}_report.csv",
-            "text/csv"
-        )
+            # -----------------------------
+            # DOWNLOAD CSV
+            # -----------------------------
+
+            csv = dataset.to_csv(index=False)
+
+            st.download_button(
+                "⬇️ Download My Report",
+                csv,
+                f"{employee_name}_report.csv",
+                "text/csv"
+            )
+
+        else:
+            st.warning("⚠️ No comments found for report (possible ID mismatch)")
 
     else:
         st.info("Start labeling to generate your report 🚀")
