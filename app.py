@@ -6,70 +6,68 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.feature_extraction.text import HashingVectorizer
 from googleapiclient.discovery import build
 
-# -----------------------------
-# DATABASE
-# -----------------------------
+# ---------------- DATABASE ----------------
 
 conn = sqlite3.connect("database.db", check_same_thread=False)
 cursor = conn.cursor()
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS comments(
+cursor.execute("""CREATE TABLE IF NOT EXISTS comments(
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 video_id TEXT,
 comment_text TEXT UNIQUE
-)
-""")
+)""")
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS labels(
+cursor.execute("""CREATE TABLE IF NOT EXISTS labels(
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 comment_id INTEGER,
 employee_name TEXT,
 label TEXT
-)
-""")
+)""")
+
+cursor.execute("""CREATE TABLE IF NOT EXISTS videos(
+video_id TEXT PRIMARY KEY,
+loaded_by TEXT
+)""")
+
+cursor.execute("""CREATE TABLE IF NOT EXISTS employee_video(
+employee_name TEXT PRIMARY KEY,
+video_id TEXT
+)""")
+
+cursor.execute("""CREATE TABLE IF NOT EXISTS employee_progress(
+employee_name TEXT PRIMARY KEY,
+last_index INTEGER
+)""")
 
 conn.commit()
 
-# -----------------------------
-# MODEL
-# -----------------------------
+# ---------------- MODEL ----------------
 
-classes = ["negative", "neutral", "positive"]
+classes = ["negative","neutral","positive"]
 
-vectorizer = HashingVectorizer(
-    n_features=2**18,
-    alternate_sign=False
-)
+vectorizer = HashingVectorizer(n_features=2**18, alternate_sign=False)
 
 try:
     model = joblib.load("model.pkl")
 except:
     model = SGDClassifier(loss="log_loss")
 
-# -----------------------------
-# YOUTUBE FUNCTIONS
-# -----------------------------
+# ---------------- FUNCTIONS ----------------
 
 def extract_video_id(url):
-
     if "watch?v=" in url:
         return url.split("watch?v=")[1]
-
     if "youtu.be/" in url:
         return url.split("youtu.be/")[1]
 
-
 def fetch_comments(api_key, video_id):
 
-    youtube = build("youtube", "v3", developerKey=api_key)
+    youtube = build("youtube","v3",developerKey=api_key)
 
-    comments = []
-    next_page = None
+    comments=[]
+    next_page=None
 
     while True:
-
         request = youtube.commentThreads().list(
             part="snippet",
             videoId=video_id,
@@ -81,296 +79,173 @@ def fetch_comments(api_key, video_id):
         response = request.execute()
 
         for item in response["items"]:
-
-            text = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+            text=item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
             comments.append(text)
 
-        next_page = response.get("nextPageToken")
+        next_page=response.get("nextPageToken")
 
         if not next_page:
             break
 
     return comments
 
-# -----------------------------
-# MODEL UPDATE
-# -----------------------------
+def update_model(text,label):
+    X = vectorizer.transform([text])
+    model.partial_fit(X,[label],classes=classes)
+    joblib.dump(model,"model.pkl")
 
-def update_model(comment, label):
+def is_video_loaded(video_id):
+    df = pd.read_sql("SELECT * FROM videos WHERE video_id=?",conn,params=(video_id,))
+    return len(df)>0
 
-    X = vectorizer.transform([comment])
+def get_employee_video(employee_name):
+    df = pd.read_sql("SELECT video_id FROM employee_video WHERE employee_name=?",conn,params=(employee_name,))
+    return df.iloc[0]["video_id"] if len(df)>0 else None
 
-    model.partial_fit(
-        X,
-        [label],
-        classes=classes
-    )
+def save_progress(employee_name,index):
+    cursor.execute("""
+    INSERT INTO employee_progress(employee_name,last_index)
+    VALUES(?,?)
+    ON CONFLICT(employee_name)
+    DO UPDATE SET last_index=excluded.last_index
+    """,(employee_name,index))
+    conn.commit()
 
-    joblib.dump(model, "model.pkl")
+def load_progress(employee_name):
+    df = pd.read_sql("SELECT last_index FROM employee_progress WHERE employee_name=?",conn,params=(employee_name,))
+    return int(df.iloc[0]["last_index"]) if len(df)>0 else 0
 
-# -----------------------------
-# STREAMLIT UI
-# -----------------------------
+# ---------------- UI ----------------
 
 st.title("Film Sentiment Labeling Dashboard")
 
 employee_name = st.text_input("Employee Name")
-
 api_key = st.text_input("YouTube API Key")
-
 video_url = st.text_input("YouTube Video URL")
 
-# -----------------------------
-# LOAD COMMENTS
-# -----------------------------
+# ---------------- LOAD VIDEO ----------------
 
 if st.button("Load Comments"):
 
     video_id = extract_video_id(video_url)
 
-    comments = fetch_comments(api_key, video_id)
+    if is_video_loaded(video_id):
 
-    inserted = 0
-
-    for c in comments:
-
-        try:
-            cursor.execute(
-            "INSERT INTO comments(video_id,comment_text) VALUES(?,?)",
-            (video_id, c)
-            )
-            inserted += 1
-
-        except:
-            pass
-
-    conn.commit()
-
-    # reset session comments
-    if "comments_list" in st.session_state:
-        del st.session_state.comments_list
-        del st.session_state.index
-
-    st.success(f"{inserted} comments loaded")
-
-# -----------------------------
-# LOAD COMMENTS INTO SESSION
-# -----------------------------
-
-if "comments_list" not in st.session_state:
-
-    comments_df = pd.read_sql("""
-
-    SELECT *
-    FROM comments
-    WHERE id NOT IN (SELECT comment_id FROM labels)
-
-    """, conn)
-
-    st.session_state.comments_list = comments_df
-    st.session_state.index = 0
-
-# -----------------------------
-# REMAINING COUNT
-# -----------------------------
-
-remaining = len(st.session_state.comments_list) - st.session_state.index
-
-st.write("Comments Remaining:", remaining)
-
-# -----------------------------
-# DISPLAY COMMENT
-# -----------------------------
-
-if st.session_state.index < len(st.session_state.comments_list):
-
-    row = st.session_state.comments_list.iloc[st.session_state.index]
-
-    comment_id = row["id"]
-    comment_text = row["comment_text"]
-
-    st.subheader("Comment")
-    st.write(comment_text)
-
-    X = vectorizer.transform([comment_text])
-
-    try:
-
-        pred = model.predict(X)[0]
-        confidence = model.predict_proba(X).max()
-
-        st.write("Model Prediction:", pred)
-        st.write("Confidence:", round(confidence, 3))
-
-    except:
-
-        st.write("Model Prediction: None")
-
-    col1, col2, col3 = st.columns(3)
-
-    # -----------------------------
-    # POSITIVE
-    # -----------------------------
-
-    if col1.button("Positive"):
-
-        cursor.execute(
-        "INSERT INTO labels(comment_id,employee_name,label) VALUES(?,?,?)",
-        (comment_id, employee_name, "positive")
-        )
-
-        conn.commit()
-
-        update_model(comment_text, "positive")
-
-        st.session_state.index += 1
-
-        st.rerun()
-
-    # -----------------------------
-    # NEUTRAL
-    # -----------------------------
-
-    if col2.button("Neutral"):
-
-        cursor.execute(
-        "INSERT INTO labels(comment_id,employee_name,label) VALUES(?,?,?)",
-        (comment_id, employee_name, "neutral")
-        )
-
-        conn.commit()
-
-        update_model(comment_text, "neutral")
-
-        st.session_state.index += 1
-
-        st.rerun()
-
-    # -----------------------------
-    # NEGATIVE
-    # -----------------------------
-
-    if col3.button("Negative"):
-
-        cursor.execute(
-        "INSERT INTO labels(comment_id,employee_name,label) VALUES(?,?,?)",
-        (comment_id, employee_name, "negative")
-        )
-
-        conn.commit()
-
-        update_model(comment_text, "negative")
-
-        st.session_state.index += 1
-
-        st.rerun()
-
-else:
-
-    st.success("All comments labeled")
-    
-# -----------------------------
-# EMPLOYEE PERFORMANCE REPORT
-# -----------------------------
-
-st.divider()
-st.header("📊 My Performance Report")
-
-if employee_name:
-
-    # -----------------------------
-    # EMPLOYEE STATS
-    # -----------------------------
-
-    report = pd.read_sql(f"""
-    SELECT 
-        COUNT(*) as total_labels,
-        SUM(label='positive') as positive,
-        SUM(label='neutral') as neutral,
-        SUM(label='negative') as negative
-    FROM labels
-    WHERE employee_name = '{employee_name}'
-    """, conn)
-
-    total = int(report.iloc[0]["total_labels"])
-
-    if total > 0:
-
-        positive = int(report.iloc[0]["positive"] or 0)
-        neutral = int(report.iloc[0]["neutral"] or 0)
-        negative = int(report.iloc[0]["negative"] or 0)
-
-        # -----------------------------
-        # TOTAL COMMENTS
-        # -----------------------------
-
-        total_comments = pd.read_sql("""
-        SELECT COUNT(*) as total FROM comments
-        """, conn).iloc[0]["total"]
-
-        contribution = round((total / total_comments) * 100, 2) if total_comments > 0 else 0
-
-        pos_pct = round((positive / total) * 100, 1)
-        neu_pct = round((neutral / total) * 100, 1)
-        neg_pct = round((negative / total) * 100, 1)
-
-        # -----------------------------
-        # METRICS
-        # -----------------------------
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        col1.metric("Total Labels", total)
-        col2.metric("Positive", f"{positive} ({pos_pct}%)")
-        col3.metric("Neutral", f"{neutral} ({neu_pct}%)")
-        col4.metric("Negative", f"{negative} ({neg_pct}%)")
-
-        st.progress(contribution / 100)
-        st.write(f"📈 Contribution to dataset: **{contribution}%**")
-
-        # -----------------------------
-        # FIXED DATASET QUERY (KEY FIX)
-        # -----------------------------
-
-        dataset = pd.read_sql(f"""
-        SELECT 
-            c.comment_text,
-            l.label
-        FROM labels l
-        LEFT JOIN comments c ON c.id = l.comment_id
-        WHERE l.employee_name = '{employee_name}'
-        AND c.comment_text IS NOT NULL
-        """, conn)
-
-        # DEBUG (remove later if you want)
-        st.write("Rows fetched:", len(dataset))
-
-        # -----------------------------
-        # DISPLAY TABLE
-        # -----------------------------
-
-        if len(dataset) > 0:
-            st.subheader("📝 Your Labeled Comments")
-            st.dataframe(dataset)
-
-            # -----------------------------
-            # DOWNLOAD CSV
-            # -----------------------------
-
-            csv = dataset.to_csv(index=False)
-
-            st.download_button(
-                "⬇️ Download My Report",
-                csv,
-                f"{employee_name}_report.csv",
-                "text/csv"
-            )
-
-        else:
-            st.warning("⚠️ No comments found for report (possible ID mismatch)")
+        existing = pd.read_sql("SELECT loaded_by FROM videos WHERE video_id=?",conn,params=(video_id,))
+        st.warning(f"⚠️ Already loaded by {existing.iloc[0]['loaded_by']}")
 
     else:
-        st.info("Start labeling to generate your report 🚀")
 
-else:
-    st.warning("Enter your name to view report")
+        comments = fetch_comments(api_key,video_id)
+
+        for c in comments:
+            try:
+                cursor.execute("INSERT INTO comments(video_id,comment_text) VALUES(?,?)",(video_id,c))
+            except:
+                pass
+
+        cursor.execute("INSERT INTO videos(video_id,loaded_by) VALUES(?,?)",(video_id,employee_name))
+
+        conn.commit()
+
+        st.success(f"{len(comments)} comments loaded")
+
+    # set employee video
+    cursor.execute("""
+    INSERT INTO employee_video(employee_name,video_id)
+    VALUES(?,?)
+    ON CONFLICT(employee_name)
+    DO UPDATE SET video_id=excluded.video_id
+    """,(employee_name,video_id))
+    conn.commit()
+
+    # reset session
+    st.session_state.index = 0
+
+# ---------------- GET CURRENT VIDEO ----------------
+
+current_video = get_employee_video(employee_name)
+
+if current_video:
+    st.write("Current Video:", current_video)
+
+# ---------------- LOAD COMMENTS ----------------
+
+if current_video:
+
+    df = pd.read_sql("""
+    SELECT comments.id,comments.comment_text,labels.label
+    FROM comments
+    LEFT JOIN labels ON comments.id=labels.comment_id
+    WHERE comments.video_id=?
+    """,conn,params=(current_video,))
+
+    df["label"] = df["label"].fillna("")
+
+    # predictions
+    X = vectorizer.transform(df["comment_text"])
+    try:
+        df["prediction"] = model.predict(X)
+        df["confidence"] = model.predict_proba(X).max(axis=1)
+    except:
+        df["prediction"] = ""
+        df["confidence"] = ""
+
+    # load progress
+    if "index" not in st.session_state:
+        st.session_state.index = load_progress(employee_name)
+
+    st.write("Current Position:", st.session_state.index)
+
+    # ---------------- PAUSE / RESUME ----------------
+
+    colp1,colp2 = st.columns(2)
+
+    if colp1.button("Pause"):
+        save_progress(employee_name, st.session_state.index)
+        st.warning("Progress saved")
+
+    if colp2.button("Resume"):
+        st.session_state.index = load_progress(employee_name)
+        st.success("Resumed")
+
+    # ---------------- DATA TABLE ----------------
+
+    edited_df = st.data_editor(
+        df,
+        column_config={
+            "label": st.column_config.SelectboxColumn(
+                "Label",
+                options=["","positive","neutral","negative"]
+            )
+        },
+        disabled=["id","comment_text","prediction","confidence"]
+    )
+
+    # ---------------- SAVE ----------------
+
+    if st.button("Save Labels"):
+
+        for _, row in edited_df.iterrows():
+
+            if row["label"] != "":
+
+                existing = pd.read_sql(
+                    "SELECT * FROM labels WHERE comment_id=?",
+                    conn,
+                    params=(row["id"],)
+                )
+
+                if len(existing)>0:
+                    cursor.execute("UPDATE labels SET label=? WHERE comment_id=?",(row["label"],row["id"]))
+                else:
+                    cursor.execute("INSERT INTO labels(comment_id,employee_name,label) VALUES(?,?,?)",
+                                   (row["id"],employee_name,row["label"]))
+
+                update_model(row["comment_text"],row["label"])
+
+        conn.commit()
+
+        save_progress(employee_name, st.session_state.index)
+
+        st.success("Saved & Model Updated")
