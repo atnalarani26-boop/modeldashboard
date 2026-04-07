@@ -1,4 +1,4 @@
-run = "python3 -m supervisor.supervisord -c supervisord.conf"
+run = "bash start.sh"
 entrypoint = "main.py"
 
 [env]
