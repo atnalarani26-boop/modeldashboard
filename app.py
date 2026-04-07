@@ -207,51 +207,42 @@ with tab_analytics:
     if st.button("🔄 Refresh Data Insights"):
         with st.spinner("Calculating metrics..."):
             all_data = read_labeled_data()
-            
             if not all_data.empty:
-                col1, col2, col3 = st.columns(3)
+                # Calculate Metrics
+                all_data["Timestamp"] = pd.to_datetime(all_data["Timestamp"])
+                today = pd.Timestamp.now().normalize()
+                today_count = len(all_data[all_data["Timestamp"].dt.normalize() == today])
                 
+                m1, m2, m3 = st.columns(3)
+                m1.metric("📦 Total Labeled", len(all_data))
+                m2.metric("📅 Processed Today", today_count)
+                m3.metric("👥 Active Operators", all_data["Employee"].nunique())
+
+                st.divider()
+
+                col1, col2 = st.columns(2)
                 with col1:
-                    st.metric("Total Labeled", len(all_data))
+                    st.subheader("📊 Daily Productivity Trend")
+                    daily_counts = all_data.set_index("Timestamp").resample("D").count()["Comment"].reset_index()
+                    fig_line = px.area(daily_counts, x="Timestamp", y="Comment", title="Total Output per Day")
+                    st.plotly_chart(fig_line, use_container_width=True)
+
                 with col2:
-                    pos_rate = len(all_data[all_data["Label"] == "positive"]) / len(all_data)
-                    st.metric("Positive Rate", f"{pos_rate:.1%}")
-                with col3:
-                    unique_videos = all_data["Video ID"].nunique()
-                    st.metric("Videos Processed", unique_videos)
-
-                st.divider()
-
-                col_left, col_right = st.columns(2)
-
-                with col_left:
-                    st.subheader("Sentiment Distribution")
-                    fig_pie = px.pie(all_data, names='Label', hole=0.4, 
-                                     color='Label',
-                                     color_discrete_map={'positive':'#10b981', 'neutral':'#6b7280', 'negative':'#ef4444'})
-                    fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="#f8fafc")
-                    st.plotly_chart(fig_pie, use_container_width=True)
-
-                with col_right:
-                    st.subheader("Employee Productivity")
+                    st.subheader("🏆 Operator Leaderboard")
                     emp_counts = all_data["Employee"].value_counts().reset_index()
-                    emp_counts.columns = ["Employee", "Count"]
-                    fig_bar = px.bar(emp_counts, x="Employee", y="Count", color="Count", color_continuous_scale="Viridis")
-                    fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="#f8fafc")
-                    st.plotly_chart(fig_bar, use_container_width=True)
+                    emp_counts.columns = ["Name", "Total Labeled"]
+                    st.table(emp_counts)
 
                 st.divider()
-                
-                st.subheader("Comment Word Cloud")
+                st.subheader("🔠 Key Sentiment Keywords")
                 text = " ".join(all_data["Comment"].astype(str).tolist())
                 if text.strip():
-                    wc = WordCloud(width=800, height=400, background_color=None, mode="RGBA", colormap="Blues").generate(text)
+                    wc = WordCloud(width=800, height=400, background_color="white", colormap="Blues").generate(text)
                     plt.figure(figsize=(10, 5))
-                    plt.imshow(wc, interpolation='bilinear')
+                    plt.imshow(wc)
                     plt.axis("off")
                     st.pyplot(plt)
                 else:
-                    st.info("Not enough text for Word Cloud")
-
+                    st.info("Insufficient data for word cloud.")
             else:
                 st.info("No data found in Google Sheets. Start labeling first!")
