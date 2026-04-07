@@ -46,50 +46,65 @@ def logout():
 # ---------------- PREMIUM STYLING ----------------
 st.markdown("""
     <style>
+    /* Modern Business Light Theme */
     .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-        color: #f8fafc; /* Brighter body text */
+        background-color: #f8fafc;
+        color: #1e293b;
     }
-    /* Metric Card Styling */
-    div[data-testid="stMetricValue"] {
-        background: rgba(255, 255, 255, 0.07);
-        backdrop-filter: blur(12px);
-        padding: 24px;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        color: #60a5fa !important;
-        font-weight: 800;
-    }
-    /* Sidebar text color */
+    /* Sidebar Styling */
     [data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.98) !important;
+        background-color: #ffffff !important;
+        border-right: 1px solid #e2e8f0;
     }
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label {
-        color: #cbd5e1 !important;
-        font-weight: 600;
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] label {
+        color: #0f172a !important;
     }
-    /* Main Heading Glow */
-    h1 {
-        background: linear-gradient(90deg, #60a5fa, #93c5fd, #a78bfa);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 800 !important;
-        text-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
+    /* Primary Large Action Button */
+    .stButton>button {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+        border-radius: 6px !important;
+        width: 100% !important;
+        height: 3rem !important;
+        font-weight: 600 !important;
+        border: none !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
-    /* Tab Styling */
-    .stTabs [data-baseweb="tab"] {
-        color: #94a3b8 !important;
-        font-weight: 600;
+    .stButton>button:hover {
+        background-color: #1d4ed8 !important;
+        transform: translateY(-1px);
     }
-    .stTabs [aria-selected="true"] {
-        color: #60a5fa !important;
-        border-bottom-color: #60a5fa !important;
-    }
-    /* Input field styling */
+    /* Input Fields */
     .stTextInput>div>div>input {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+    }
+    /* Heading Style */
+    h1 {
+        color: #0f172a !important;
+        font-weight: 800 !important;
+        border-bottom: 2px solid #2563eb;
+        padding-bottom: 10px;
+    }
+    h2, h3 {
+        color: #334155 !important;
+    }
+    /* Data Frame Styling */
+    [data-testid="stDataFrame"] {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+    }
+    /* Metric Cards */
+    div[data-testid="stMetricValue"] {
+        color: #2563eb !important;
+        font-weight: 700;
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -97,51 +112,39 @@ st.markdown("""
 # ---------------- RENDER ----------------
 
 if not st.session_state["authenticated"]:
-    # LOGIN PAGE
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # PROFESSIONAL LOGIN PAGE
+    st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.markdown("""
-            <div style='text-align: center; background: rgba(25,25,25,0.4); padding: 40px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);'>
-                <h1>🛡️ Access Secured</h1>
-                <p style='color: #94a3b8;'>Please enter the administrative password to enter the Sentiment Intelligence Center.</p>
+            <div style='background-color: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;'>
+                <h2 style='text-align: center; margin-top: 0;'>Secure Terminal Access</h2>
+                <p style='text-align: center; color: #64748b;'>Enter administrative credentials to proceed</p>
             </div>
         """, unsafe_allow_html=True)
-        
         st.text_input("Password", type="password", key="password_input", on_change=login)
-        st.button("Enter Dashboard", on_click=login)
-        
-    st.stop() # Prevent further execution if not logged in
+        st.button("Validate Access", on_click=login)
+    st.stop()
 
 # ---------------- DASHBOARD LOGIC (AUTHENTICATED) ----------------
 
-st.title("🛡️ Sentiment Intelligence Center")
+st.markdown("<h1>📊 Professional Sentiment Analytics Dashboard</h1>", unsafe_allow_html=True)
 
 # ---------------- SIDEBAR ----------------
 
 with st.sidebar:
-    st.header("Configuration")
-    employee_name = st.text_input("Employee Name", placeholder="e.g. Rani", key="emp_name_sidebar")
-    api_key = st.text_input("YouTube API Key", type="password", key="yt_key_sidebar")
+    st.image("https://cdn-icons-png.flaticon.com/512/1041/1041916.png", width=80) 
+    st.header("Operator Panel")
+    employee_name = st.text_input("Full Name", placeholder="e.g. Rani", key="emp_name_sidebar")
+    api_key = st.text_input("System Access Key", type="password", key="yt_key_sidebar")
     
     st.divider()
-    
-    st.header("System Status")
-    # On Streamlit Cloud, the "backend" is integrated
-    st.success("System: Ready & Secure")
-
-    if st.button("🚀 Retrain Model"):
-        with st.spinner("Retraining..."):
-             train_model()
-             st.success("Model updated with latest data!")
-        
-    st.divider()
-    if st.button("🚪 Logout"):
+    if st.button("Logout from Session"):
         logout()
 
 # ---------------- MAIN TABS ----------------
 
-tab_label, tab_analytics = st.tabs(["🏷️ Labeling Workspace", "📊 Visual Analytics"])
+tab_label, tab_analytics = st.tabs(["📝 Data Collection & Labeling", "👨‍💻 Management Report"])
 
 # ---------------- TAB 1: LABELING ----------------
 
