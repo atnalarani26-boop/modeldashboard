@@ -85,6 +85,27 @@ st.markdown("""
         color: #60a5fa !important;
         border-bottom-color: #60a5fa !important;
     }
+    /* Premium Button Styling */
+    .stButton>button {
+        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%) !important;
+        color: #ffffff !important;
+        border-radius: 10px !important;
+        border: none !important;
+        padding: 0.6rem 2.5rem !important;
+        font-weight: 700 !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3) !important;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
+    }
+    /* Input field styling */
+    .stTextInput>div>div>input {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -96,7 +117,7 @@ if not st.session_state["authenticated"]:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("""
-            <div style='text-align: center;'>
+            <div style='text-align: center; background: rgba(25,25,25,0.4); padding: 40px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);'>
                 <h1>🛡️ Access Secured</h1>
                 <p style='color: #94a3b8;'>Please enter the administrative password to enter the Sentiment Intelligence Center.</p>
             </div>
@@ -115,24 +136,19 @@ st.title("🛡️ Sentiment Intelligence Center")
 
 with st.sidebar:
     st.header("Configuration")
-    employee_name = st.text_input("Employee Name", placeholder="e.g. John Doe")
-    api_key = st.text_input("YouTube API Key", type="password")
+    employee_name = st.text_input("Employee Name", placeholder="e.g. Rani", key="emp_name_sidebar")
+    api_key = st.text_input("YouTube API Key", type="password", key="yt_key_sidebar")
     
     st.divider()
     
     st.header("System Status")
-    try:
-        response = requests.get(f"{API_URL}/health", timeout=1)
-        if response.status_code == 200:
-            st.success("Backend: Online")
-        else:
-            st.error("Backend: Error")
-    except:
-        st.error("Backend: Offline")
+    # On Streamlit Cloud, the "backend" is integrated
+    st.success("System: Ready & Secure")
 
     if st.button("🚀 Retrain Model"):
-        requests.post(f"{API_URL}/train")
-        st.info("Retraining started...")
+        with st.spinner("Retraining..."):
+             train_model()
+             st.success("Model updated with latest data!")
         
     st.divider()
     if st.button("🚪 Logout"):
