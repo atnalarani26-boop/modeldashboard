@@ -9,11 +9,24 @@ from youtube import extract_video_id, fetch_comments_from_youtube
 from sheets import write_label_to_sheet, read_labeled_data
 from train import load_model
 
-# --- CONFIG ---
-API_URL = os.environ.get("API_URL", "http://localhost:5000")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+# --- CONFIG & SECRETS ---
+try:
+    # Prioritize Streamlit Cloud Secrets
+    ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
+    GOOGLE_CREDENTIALS_BASE64 = st.secrets["GOOGLE_CREDENTIALS_BASE64"]
+except:
+    # Fallback to local environment variables
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+    GOOGLE_CREDENTIALS_BASE64 = os.environ.get("GOOGLE_CREDENTIALS_BASE64", "")
 
-st.set_page_config(page_title="Sentiment Intelligence Center", layout="wide")
+API_URL = os.environ.get("API_URL", "http://localhost:5000")
+
+st.set_page_config(
+    page_title="Sentiment Intelligence Center",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # ---------------- AUTH LOGIC ----------------
 
