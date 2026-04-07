@@ -7,7 +7,7 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from youtube import extract_video_id, fetch_comments_from_youtube
 from sheets import write_label_to_sheet, read_labeled_data
-from train import load_model
+from train import load_model, train_model
 
 # --- CONFIG & SECRETS ---
 try:
