@@ -21,39 +21,43 @@ import streamlit as st
 
 def get_sheet_client():
     """
-    Authenticate and return the gspread client.
-    Priority:
-    1. Streamlit Cloud Secrets (for cloud deployment)
-    2. Environment variables (fallback)
-    3. credentials.json file (local dev)
+    Authenticate and return the gspread client with maximum robustness.
     """
+    creds_b64 = None
+    
+    # 1. Try Streamlit Secrets (The proper way on Cloud)
     try:
-        # Priority 1: Streamlit Secrets
-        creds_b64 = st.secrets["GOOGLE_CREDENTIALS_BASE64"]
-    except:
-        # Priority 2: Environment
-        creds_b64 = os.environ.get("GOOGLE_CREDENTIALS_BASE64", "")
-        
-    if creds_b64:
+        if "GOOGLE_CREDENTIALS_BASE64" in st.secrets:
+            creds_b64 = st.secrets["GOOGLE_CREDENTIALS_BASE64"]
+    except Exception as e:
+        pass
+
+    # 2. Try Environment Variables (Backup)
+    if not creds_b64:
+        creds_b64 = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
+
+    # 3. If we found a base64 string, decode and authorize
+    if creds_b64 and len(creds_b64) > 10:
         try:
             creds_json = json.loads(base64.b64decode(creds_b64))
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, SCOPE)
-            client = gspread.authorize(creds)
-            return client
+            return gspread.authorize(creds)
         except Exception as e:
-            print(f"Error loading credentials: {e}")
+            st.error(f"Error decoding cloud secrets: {e}")
 
-    # --- Option 2: credentials.json file on disk ---
-    if not os.path.exists(CREDENTIALS_FILE):
-        raise FileNotFoundError(
-            f"{CREDENTIALS_FILE} not found and GOOGLE_CREDENTIALS_BASE64 env var is not set.\n"
-            "For cloud deployment, set the GOOGLE_CREDENTIALS_BASE64 environment variable.\n"
-            "For local dev, place credentials.json in the project root."
-        )
+    # 4. Fallback to local file (Local Dev only)
+    if os.path.exists(CREDENTIALS_FILE):
+        try:
+            creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
+            return gspread.authorize(creds)
+        except Exception as e:
+            st.error(f"Error loading local credentials: {e}")
 
-    creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
-    client = gspread.authorize(creds)
-    return client
+    # 5. Final Crash if everything fails
+    raise FileNotFoundError(
+        "CRITICAL: Could not find Google credentials! "
+        "Please ensure 'GOOGLE_CREDENTIALS_BASE64' is set in your Streamlit Cloud 'Secrets' box."
+    )
 
 
 def write_label_to_sheet(comment, label, employee_name, video_id, sheet_name="Sentiment Labels"):
