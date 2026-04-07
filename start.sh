@@ -7,9 +7,9 @@ mkdir -p /tmp/client_body /tmp/proxy /tmp/fastcgi /tmp/uwsgi /tmp/scgi
 echo "Ensuring all packages are installed... (this may take a minute)"
 python3 -m pip install -r requirements.txt --quiet
 
-# 3. Start FastAPI in the background
+# 3. Start FastAPI in the background (using uvicorn directly for better Replit stability)
 echo "Starting FastAPI backend on port 5000..."
-gunicorn -w 2 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:5000 --timeout 120 &
+python3 -m uvicorn main:app --host 0.0.0.0 --port 5000 &
 
 # 4. Start Streamlit in the background
 echo "Starting Streamlit UI on port 8501..."

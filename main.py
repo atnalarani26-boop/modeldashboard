@@ -21,33 +21,22 @@ app = FastAPI(title="Sentiment Analysis API")
 
 @app.on_event("startup")
 async def startup_event():
-    """
-    On startup:
-    1. Try to download the latest model from GCS (Cloud Run persistence).
-    2. Fall back to local model.pkl if GCS is unavailable.
-    3. Log the model status.
-    """
     logger.info("Starting up — checking for model...")
-
-    # Try downloading from GCS first (for Cloud Run deployments)
-    if not os.path.exists("model.pkl"):
-        logger.info("No local model.pkl found, attempting GCS download...")
-        try:
+    try:
+        # Try downloading from GCS first (for Cloud Run deployments)
+        if not os.path.exists("model.pkl"):
+            logger.info("No local model.pkl found, attempting GCS download...")
             downloaded = download_model()
             if downloaded:
                 logger.info("Model downloaded from GCS successfully.")
-            else:
-                logger.info("No model in GCS either — bootstrap model will be used.")
-        except Exception as e:
-            logger.warning(f"GCS download failed (non-fatal): {e}")
-    else:
-        logger.info("Local model.pkl found.")
-
-    model = load_model()
-    if model:
-        logger.info("Model loaded and ready for predictions.")
-    else:
-        logger.warning("No model available. Train one via POST /train.")
+        
+        model = load_model()
+        if model:
+            logger.info("Model loaded and ready for predictions.")
+        else:
+            logger.warning("No model available. Train one via POST /train.")
+    except Exception as e:
+        logger.error(f"Startup warning (ignored): {e}")
 
 
 class PredictionRequest(BaseModel):
