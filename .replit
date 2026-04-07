@@ -1,0 +1,5 @@
+run = "supervisord -c supervisord.conf"
+entrypoint = "main.py"
+
+[env]
+PYTHONUNBUFFERED = "1"

@@ -155,6 +155,34 @@ curl -X POST https://YOUR-URL.run.app/api/predict \
 
 ---
 
+## ☁️ Cloud Deployment (Replit)
+
+This project has been optimized for a frictionless deployment on **Replit**.
+
+### Step 1: Import to Replit
+Simply import your GitHub repository into Replit or upload the files manually into a new Python project.
+
+### Step 2: Configure Environment Variables
+Inside Replit, go to the **Tools > Secrets** panel and add the following keys securely (do not commit them to your repository):
+- `GOOGLE_CREDENTIALS_BASE64`: Your securely encoded `credentials.json` credentials.
+- `ADMIN_PASSWORD`: Your password for accessing the Streamlit operations dashboard.
+- `GCS_BUCKET_NAME` (optional for local GCS testing): `sentiment-model-store`
+
+### Step 3: Run and Deploy
+Click **Run** inside the Replit interface! 
+- Replit will automatically read `.replit` and `replit.nix` files to install Python 3.11, NGINX, and Supervisord.
+- Supervisord will start FastAPI, Streamlit, and NGINX on `http://0.0.0.0:8080` which is natively exposed by Replit's public HTTPS URL.
+- To make it "Always On" permanently, navigate to Replit Deploy and select **Autodeploy (Background)** to keep it live!
+
+---
+
+## 🐳 Deployment (Google Cloud Run)
+
+If you prefer GCP over Replit:
+*(Follow typical Google Cloud setup: `gcloud run deploy ...`)*
+
+---
+
 ## 🐳 Docker (Local Testing)
 
 ```bash
