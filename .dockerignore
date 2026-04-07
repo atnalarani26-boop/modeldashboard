@@ -1,0 +1,14 @@
+.git
+.github
+.gitignore
+.env
+credentials.json
+model.pkl
+__pycache__
+*.pyc
+*.pyo
+venv
+.venv
+*.md
+start.bat
+start.sh

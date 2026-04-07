@@ -1,258 +1,251 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
-import joblib
+import requests
 import os
+import plotly.express as px
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+from youtube import extract_video_id, fetch_comments_from_youtube
+from sheets import write_label_to_sheet, read_labeled_data
+from train import load_model
 
-from sklearn.linear_model import SGDClassifier
-from sklearn.feature_extraction.text import HashingVectorizer
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from urllib.parse import urlparse, parse_qs
+# --- CONFIG ---
+API_URL = os.environ.get("API_URL", "http://localhost:5000")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
 
-# ---------------- DATABASE ----------------
+st.set_page_config(page_title="Sentiment Intelligence Center", layout="wide")
 
-DB_PATH = os.path.join(os.getcwd(), "database.db")
-conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-cursor = conn.cursor()
+# ---------------- AUTH LOGIC ----------------
 
-# ---------------- TABLES ----------------
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS comments(
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-video_id TEXT,
-comment_text TEXT UNIQUE
-)""")
-
-cursor.execute("""CREATE TABLE IF NOT EXISTS labels(
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-comment_id INTEGER,
-employee_name TEXT,
-label TEXT
-)""")
-
-cursor.execute("""CREATE TABLE IF NOT EXISTS videos(
-video_id TEXT PRIMARY KEY,
-loaded_by TEXT
-)""")
-
-cursor.execute("""CREATE TABLE IF NOT EXISTS employee_video(
-employee_name TEXT PRIMARY KEY,
-video_id TEXT
-)""")
-
-cursor.execute("""CREATE TABLE IF NOT EXISTS employee_progress(
-employee_name TEXT PRIMARY KEY,
-last_index INTEGER
-)""")
-
-conn.commit()
-
-# ---------------- MODEL ----------------
-
-classes = ["negative","neutral","positive"]
-
-vectorizer = HashingVectorizer(n_features=2**18, alternate_sign=False)
-
-try:
-    model = joblib.load("model.pkl")
-except:
-    model = SGDClassifier(loss="log_loss")
-
-# ---------------- FUNCTIONS ----------------
-
-def extract_video_id(url):
-    try:
-        parsed_url = urlparse(url)
-
-        if "youtube.com" in url:
-            return parse_qs(parsed_url.query).get("v", [None])[0]
-
-        if "youtu.be" in url:
-            return parsed_url.path.split("/")[1]
-
-    except:
-        return None
-
-def fetch_comments(api_key, video_id):
-
-    youtube = build("youtube","v3",developerKey=api_key)
-
-    comments=[]
-    next_page=None
-
-    while True:
-        try:
-            request = youtube.commentThreads().list(
-                part="snippet",
-                videoId=video_id,
-                maxResults=100,
-                textFormat="plainText",
-                pageToken=next_page
-            )
-
-            response = request.execute()
-
-        except HttpError as e:
-            st.error(f"YouTube API Error: {e}")
-            return []
-
-        for item in response.get("items", []):
-            text=item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
-            comments.append(text)
-
-        next_page=response.get("nextPageToken")
-
-        if not next_page:
-            break
-
-    return comments
-
-def is_video_loaded(video_id):
-    df = pd.read_sql("SELECT * FROM videos WHERE video_id=?",conn,params=(video_id,))
-    return len(df)>0
-
-def get_employee_video(employee_name):
-    df = pd.read_sql("SELECT video_id FROM employee_video WHERE employee_name=?",conn,params=(employee_name,))
-    return df.iloc[0]["video_id"] if len(df)>0 else None
-
-# ---------------- UI ----------------
-
-st.title("Film Sentiment Labeling Dashboard")
-
-employee_name = st.text_input("Employee Name")
-api_key = st.text_input("YouTube API Key")
-video_url = st.text_input("YouTube Video URL")
-
-# ---------------- LOAD VIDEO ----------------
-
-if st.button("Load Comments"):
-
-    video_id = extract_video_id(video_url)
-
-    # 🔥 VALIDATION
-    if not video_id:
-        st.error("Invalid YouTube URL")
-        st.stop()
-
-    if len(video_id) != 11:
-        st.error("Invalid Video ID extracted")
-        st.stop()
-
-    if is_video_loaded(video_id):
-        existing = pd.read_sql("SELECT loaded_by FROM videos WHERE video_id=?",conn,params=(video_id,))
-        st.warning(f"Already loaded by {existing.iloc[0]['loaded_by']}")
+def login():
+    if st.session_state["password_input"] == ADMIN_PASSWORD:
+        st.session_state["authenticated"] = True
     else:
-        comments = fetch_comments(api_key,video_id)
+        st.error("Invalid password. Please try again.")
 
-        if not comments:
-            st.warning("No comments found or API error")
-            st.stop()
+def logout():
+    st.session_state["authenticated"] = False
+    st.rerun()
 
-        for c in comments:
-            try:
-                cursor.execute(
-                    "INSERT INTO comments(video_id,comment_text) VALUES(?,?)",
-                    (video_id,c)
-                )
-            except:
-                pass
+# ---------------- PREMIUM STYLING ----------------
+st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        color: #e2e8f0;
+    }
+    div[data-testid="stMetricValue"] {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #60a5fa !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: rgba(15, 23, 42, 0.95) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .stButton>button {
+        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border-radius: 8px;
+        border: none;
+        padding: 0.5rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+    h1 {
+        background: linear-gradient(90deg, #60a5fa, #a78bfa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800 !important;
+    }
+    /* Glassmorphism Login Card */
+    .login-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        padding: 40px;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        text-align: center;
+        max-width: 400px;
+        margin: auto;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-        cursor.execute(
-            "INSERT INTO videos(video_id,loaded_by) VALUES(?,?)",
-            (video_id,employee_name)
-        )
-        conn.commit()
+# ---------------- RENDER ----------------
 
-        st.success(f"{len(comments)} comments loaded")
+if not st.session_state["authenticated"]:
+    # LOGIN PAGE
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("""
+            <div style='text-align: center;'>
+                <h1>🛡️ Access Secured</h1>
+                <p style='color: #94a3b8;'>Please enter the administrative password to enter the Sentiment Intelligence Center.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.text_input("Password", type="password", key="password_input", on_change=login)
+        st.button("Enter Dashboard", on_click=login)
+        
+    st.stop() # Prevent further execution if not logged in
 
-    # assign video to employee
-    existing = cursor.execute(
-        "SELECT * FROM employee_video WHERE employee_name=?",
-        (employee_name,)
-    ).fetchone()
+# ---------------- DASHBOARD LOGIC (AUTHENTICATED) ----------------
 
-    if existing:
-        cursor.execute(
-            "UPDATE employee_video SET video_id=? WHERE employee_name=?",
-            (video_id, employee_name)
-        )
-    else:
-        cursor.execute(
-            "INSERT INTO employee_video(employee_name,video_id) VALUES(?,?)",
-            (employee_name, video_id)
-        )
+st.title("🛡️ Sentiment Intelligence Center")
 
-    conn.commit()
+# ---------------- SIDEBAR ----------------
 
-# ---------------- LOAD DATA ----------------
-
-current_video = get_employee_video(employee_name)
-
-if current_video:
-
-    df = pd.read_sql("""
-    SELECT comments.id,comments.comment_text,labels.label
-    FROM comments
-    LEFT JOIN labels ON comments.id=labels.comment_id
-    WHERE comments.video_id=?
-    """,conn,params=(current_video,))
-
-    df["label"] = df["label"].fillna("")
-
-    X = vectorizer.transform(df["comment_text"])
-
+with st.sidebar:
+    st.header("Configuration")
+    employee_name = st.text_input("Employee Name", placeholder="e.g. John Doe")
+    api_key = st.text_input("YouTube API Key", type="password")
+    
+    st.divider()
+    
+    st.header("System Status")
     try:
-        df["prediction"] = model.predict(X)
-        df["confidence"] = model.predict_proba(X).max(axis=1)
+        response = requests.get(f"{API_URL}/health", timeout=1)
+        if response.status_code == 200:
+            st.success("Backend: Online")
+        else:
+            st.error("Backend: Error")
     except:
-        df["prediction"] = ""
-        df["confidence"] = ""
+        st.error("Backend: Offline")
 
-    edited_df = st.data_editor(
-        df,
-        column_config={
-            "label": st.column_config.SelectboxColumn(
-                "Label",
-                options=["","positive","neutral","negative"]
-            )
-        },
-        disabled=["id","comment_text","prediction","confidence"]
-    )
+    if st.button("🚀 Retrain Model"):
+        requests.post(f"{API_URL}/train")
+        st.info("Retraining started...")
+        
+    st.divider()
+    if st.button("🚪 Logout"):
+        logout()
 
-    if st.button("Save Labels"):
+# ---------------- MAIN TABS ----------------
 
-        batch_texts=[]
-        batch_labels=[]
+tab_label, tab_analytics = st.tabs(["🏷️ Labeling Workspace", "📊 Visual Analytics"])
 
-        for _, row in edited_df.iterrows():
+# ---------------- TAB 1: LABELING ----------------
 
-            if row["label"]!="":
+with tab_label:
+    video_url = st.text_input("YouTube Video URL", placeholder="https://www.youtube.com/watch?v=...")
 
-                existing = cursor.execute(
-                    "SELECT * FROM labels WHERE comment_id=?",
-                    (row["id"],)
-                ).fetchone()
+    if st.button("🔍 Fetch Comments"):
+        if not employee_name or not api_key:
+            st.error("Please fill in Configuration in sidebar")
+        else:
+            video_id = extract_video_id(video_url)
+            if video_id:
+                with st.spinner("Fetching..."):
+                    comments = fetch_comments_from_youtube(api_key, video_id)
+                    if comments:
+                        st.session_state['comments_df'] = pd.DataFrame({
+                            "comment": comments,
+                            "label": ["" for _ in comments],
+                            "video_id": [video_id for _ in comments]
+                        })
+            else:
+                st.error("Invalid URL")
 
-                if existing:
-                    cursor.execute(
-                        "UPDATE labels SET label=? WHERE comment_id=?",
-                        (row["label"],row["id"])
-                    )
+    if 'comments_df' in st.session_state:
+        df = st.session_state['comments_df']
+        
+        if st.checkbox("Enable AI Assistance"):
+            with st.spinner("Analyzing..."):
+                preds = []
+                for c in df["comment"][:20]: # Limit for demo speed
+                    try:
+                        res = requests.post(f"{API_URL}/predict", json={"text": c}, timeout=1).json()
+                        preds.append(f"{res['sentiment']} ({res['confidence']:.2f})")
+                    except: preds.append("N/A")
+                if len(preds) < len(df): preds.extend(["N/A"] * (len(df)-len(preds)))
+                df["AI Suggestion"] = preds
+
+        edited_df = st.data_editor(
+            df,
+            column_config={
+                "label": st.column_config.SelectboxColumn("Label", options=["positive", "neutral", "negative", ""]),
+                "comment": st.column_config.TextColumn("Comment", width="large")
+            },
+            disabled=["comment", "AI Suggestion", "video_id"],
+            use_container_width=True
+        )
+
+        if st.button("💾 Save to Google Sheets"):
+            labeled = edited_df[edited_df["label"] != ""]
+            if not labeled.empty:
+                for _, row in labeled.iterrows():
+                    write_label_to_sheet(row["comment"], row["label"], employee_name, row["video_id"])
+                st.success("Saved! Model retraining triggered.")
+                requests.post(f"{API_URL}/train")
+
+# ---------------- TAB 2: ANALYTICS ----------------
+
+with tab_analytics:
+    st.header("Global Sentiment Insights")
+    
+    if st.button("🔄 Refresh Data Insights"):
+        with st.spinner("Calculating metrics..."):
+            all_data = read_labeled_data()
+            
+            if not all_data.empty:
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Total Labeled", len(all_data))
+                with col2:
+                    pos_rate = len(all_data[all_data["Label"] == "positive"]) / len(all_data)
+                    st.metric("Positive Rate", f"{pos_rate:.1%}")
+                with col3:
+                    unique_videos = all_data["Video ID"].nunique()
+                    st.metric("Videos Processed", unique_videos)
+
+                st.divider()
+
+                col_left, col_right = st.columns(2)
+
+                with col_left:
+                    st.subheader("Sentiment Distribution")
+                    fig_pie = px.pie(all_data, names='Label', hole=0.4, 
+                                     color='Label',
+                                     color_discrete_map={'positive':'#10b981', 'neutral':'#6b7280', 'negative':'#ef4444'})
+                    fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="#f8fafc")
+                    st.plotly_chart(fig_pie, use_container_width=True)
+
+                with col_right:
+                    st.subheader("Employee Productivity")
+                    emp_counts = all_data["Employee"].value_counts().reset_index()
+                    emp_counts.columns = ["Employee", "Count"]
+                    fig_bar = px.bar(emp_counts, x="Employee", y="Count", color="Count", color_continuous_scale="Viridis")
+                    fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="#f8fafc")
+                    st.plotly_chart(fig_bar, use_container_width=True)
+
+                st.divider()
+                
+                st.subheader("Comment Word Cloud")
+                text = " ".join(all_data["Comment"].astype(str).tolist())
+                if text.strip():
+                    wc = WordCloud(width=800, height=400, background_color=None, mode="RGBA", colormap="Blues").generate(text)
+                    plt.figure(figsize=(10, 5))
+                    plt.imshow(wc, interpolation='bilinear')
+                    plt.axis("off")
+                    st.pyplot(plt)
                 else:
-                    cursor.execute(
-                        "INSERT INTO labels(comment_id,employee_name,label) VALUES(?,?,?)",
-                        (row["id"],employee_name,row["label"])
-                    )
+                    st.info("Not enough text for Word Cloud")
 
-                batch_texts.append(row["comment_text"])
-                batch_labels.append(row["label"])
-
-        conn.commit()
-
-        if batch_texts:
-            X_batch = vectorizer.transform(batch_texts)
-            model.partial_fit(X_batch,batch_labels,classes=classes)
-            joblib.dump(model,"model.pkl")
-
-        st.success("Labels saved & model updated")
+            else:
+                st.info("No data found in Google Sheets. Start labeling first!")

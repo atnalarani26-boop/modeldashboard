@@ -1,0 +1,55 @@
+name: ML Pipeline Build & Notify
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify API & Model Structure
+        run: |
+          # Basic syntax and import check
+          python -c "import main; import train; import sheets; import youtube; print('All modules imported successfully')"
+          # Simulate a quick health check or bootstrap if needed
+          python bootstrap.py
+
+      - name: Send Email Notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "ML Pipeline Status - ${{ github.job }} (Result: ${{ job.status }})"
+          body: |
+            Hello,
+
+            The GitHub Action for your Sentiment Analysis Dashboard has completed.
+            
+            - **Repository**: ${{ github.repository }}
+            - **Branch**: ${{ github.ref_name }}
+            - **Status**: ${{ job.status }}
+            - **Triggered By**: ${{ github.actor }}
+            
+            View full details here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: ccpssm1@gmail.com
+          from: "GitHub Actions Bot"
