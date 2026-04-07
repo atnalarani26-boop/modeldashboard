@@ -145,9 +145,13 @@ with st.sidebar:
 
 tab_label, tab_analytics = st.tabs(["🧩 Labeling Factory", "📋 Global Management Leaderboard"])
 
-# ---------------- TAB 1: LABELING ----------------
-
 with tab_label:
+    # Diagnostic Check
+    if not employee_name or not api_key:
+        st.info("👋 Hello! Please enter your **Name** and **Key** in the sidebar to start labeling.")
+    else:
+        st.success(f"✅ System Ready: Logged in as **{employee_name}**")
+
     video_url = st.text_input("YouTube Video URL", placeholder="https://www.youtube.com/watch?v=...")
 
     if st.button("🔍 Fetch Comments"):
