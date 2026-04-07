@@ -17,16 +17,23 @@ SCOPE = [
 CREDENTIALS_FILE = "credentials.json"
 
 
+import streamlit as st
+
 def get_sheet_client():
     """
     Authenticate and return the gspread client.
-    
     Priority:
-    1. GOOGLE_CREDENTIALS_BASE64 env var (for Cloud Run / CI)
-    2. credentials.json file on disk (for local development)
+    1. Streamlit Cloud Secrets (for cloud deployment)
+    2. Environment variables (fallback)
+    3. credentials.json file (local dev)
     """
-    # --- Option 1: Base64-encoded credentials from environment ---
-    creds_b64 = os.environ.get("GOOGLE_CREDENTIALS_BASE64", "")
+    try:
+        # Priority 1: Streamlit Secrets
+        creds_b64 = st.secrets["GOOGLE_CREDENTIALS_BASE64"]
+    except:
+        # Priority 2: Environment
+        creds_b64 = os.environ.get("GOOGLE_CREDENTIALS_BASE64", "")
+        
     if creds_b64:
         try:
             creds_json = json.loads(base64.b64decode(creds_b64))
@@ -34,7 +41,7 @@ def get_sheet_client():
             client = gspread.authorize(creds)
             return client
         except Exception as e:
-            print(f"Error loading credentials from env var: {e}")
+            print(f"Error loading credentials: {e}")
 
     # --- Option 2: credentials.json file on disk ---
     if not os.path.exists(CREDENTIALS_FILE):
