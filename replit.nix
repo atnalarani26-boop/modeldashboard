@@ -1,9 +1,6 @@
-{pkgs}: {
+{ pkgs }: {
   deps = [
-    pkgs.python311Full
-    pkgs.python311Packages.pip
+    pkgs.python311
     pkgs.nginx
-    pkgs.python311Packages.supervisor
-    pkgs.python311Packages.gunicorn
   ];
 }

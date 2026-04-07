@@ -13,3 +13,4 @@ python-multipart
 plotly
 wordcloud
 matplotlib
+supervisor
