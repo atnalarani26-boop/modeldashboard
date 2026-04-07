@@ -46,65 +46,64 @@ def logout():
 # ---------------- PREMIUM STYLING ----------------
 st.markdown("""
     <style>
-    /* Modern Business Light Theme */
+    /* Premium 3D Depth Theme */
     .stApp {
-        background-color: #f8fafc;
-        color: #1e293b;
+        background-color: #f0f4f8;
+        color: #2c3e50;
     }
-    /* Sidebar Styling */
+    /* 3D Floating Sidebar */
     [data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #e2e8f0;
+        background: white !important;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.05) !important;
+        border-radius: 0 30px 30px 0 !important;
+        margin: 20px 20px 20px 0 !important;
+        height: calc(100vh - 40px) !important;
     }
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] label {
-        color: #0f172a !important;
+    /* Neumorphic Metric Cards */
+    div[data-testid="stMetricValue"] {
+        background: white;
+        box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff;
+        padding: 25px;
+        border-radius: 20px;
+        color: #3498db !important;
+        font-weight: 800;
+        border: none;
     }
-    /* Primary Large Action Button */
+    /* 3D Soft Buttons */
     .stButton>button {
-        background-color: #2563eb !important;
-        color: #ffffff !important;
-        border-radius: 6px !important;
+        background: #ffffff !important;
+        color: #3498db !important;
+        border-radius: 12px !important;
+        box-shadow: 5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff !important;
         width: 100% !important;
-        height: 3rem !important;
-        font-weight: 600 !important;
-        border: none !important;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        height: 3.5rem !important;
+        font-weight: 700 !important;
+        border: 2px solid transparent !important;
+        transition: all 0.2s ease !important;
+    }
+    .stButton>button:active {
+        box-shadow: inset 5px 5px 10px #d1d9e6, inset -5px -5px 10px #ffffff !important;
     }
     .stButton>button:hover {
-        background-color: #1d4ed8 !important;
-        transform: translateY(-1px);
+        border: 2px solid #3498db !important;
     }
-    /* Input Fields */
-    .stTextInput>div>div>input {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 6px !important;
-    }
-    /* Heading Style */
+    /* 3D Floating Headings */
     h1 {
-        color: #0f172a !important;
-        font-weight: 800 !important;
-        border-bottom: 2px solid #2563eb;
-        padding-bottom: 10px;
-    }
-    h2, h3 {
-        color: #334155 !important;
-    }
-    /* Data Frame Styling */
-    [data-testid="stDataFrame"] {
-        border-radius: 8px;
-        overflow: hidden;
-        border: 1px solid #e2e8f0;
-    }
-    /* Metric Cards */
-    div[data-testid="stMetricValue"] {
-        color: #2563eb !important;
-        font-weight: 700;
+        color: #2c3e50 !important;
+        font-weight: 900 !important;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
         background: white;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #e2e8f0;
+        border-radius: 15px;
+        box-shadow: 4px 4px 10px rgba(0,0,0,0.02);
+    }
+    /* Input Depth */
+    .stTextInput>div>div>input {
+        background: #ffffff !important;
+        box-shadow: inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff !important;
+        border-radius: 12px !important;
+        border: none !important;
+        color: #2c3e50 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -112,39 +111,39 @@ st.markdown("""
 # ---------------- RENDER ----------------
 
 if not st.session_state["authenticated"]:
-    # PROFESSIONAL LOGIN PAGE
+    # 3D LOGIN CARD
     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 1.2, 1])
+    col1, col2, col3 = st.columns([1, 1.3, 1])
     with col2:
         st.markdown("""
-            <div style='background-color: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;'>
-                <h2 style='text-align: center; margin-top: 0;'>Secure Terminal Access</h2>
-                <p style='text-align: center; color: #64748b;'>Enter administrative credentials to proceed</p>
+            <div style='background: white; padding: 40px; border-radius: 25px; box-shadow: 20px 20px 60px #d1d9e6, -20px -20px 60px #ffffff; text-align: center;'>
+                <h1 style='box-shadow: none; padding: 0;'>🔐 Portal Login</h1>
+                <p style='color: #7f8c8d; margin-top: 10px;'>Secure Depth Interface Access</p>
             </div>
         """, unsafe_allow_html=True)
-        st.text_input("Password", type="password", key="password_input", on_change=login)
-        st.button("Validate Access", on_click=login)
+        st.text_input("Access Password", type="password", key="password_input", on_change=login)
+        st.button("Launch System", on_click=login)
     st.stop()
 
 # ---------------- DASHBOARD LOGIC (AUTHENTICATED) ----------------
 
-st.markdown("<h1>📊 Professional Sentiment Analytics Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("<h1>🌟 Sentiment Analytic Intelligence</h1>", unsafe_allow_html=True)
 
 # ---------------- SIDEBAR ----------------
 
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/1041/1041916.png", width=80) 
-    st.header("Operator Panel")
-    employee_name = st.text_input("Full Name", placeholder="e.g. Rani", key="emp_name_sidebar")
-    api_key = st.text_input("System Access Key", type="password", key="yt_key_sidebar")
+    st.markdown("<div style='text-align: center;'><img src='https://cdn-icons-png.flaticon.com/512/1041/1041916.png' width='100'></div>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #2c3e50;'>Operator Control</h2>", unsafe_allow_html=True)
+    employee_name = st.text_input("Name", placeholder="e.g. Rani", key="emp_name_sidebar")
+    api_key = st.text_input("Key", type="password", key="yt_key_sidebar")
     
     st.divider()
-    if st.button("Logout from Session"):
+    if st.button("Close Session"):
         logout()
 
 # ---------------- MAIN TABS ----------------
 
-tab_label, tab_analytics = st.tabs(["📝 Data Collection & Labeling", "👨‍💻 Management Report"])
+tab_label, tab_analytics = st.tabs(["🧩 Labeling Factory", "📋 Global Management Leaderboard"])
 
 # ---------------- TAB 1: LABELING ----------------
 
