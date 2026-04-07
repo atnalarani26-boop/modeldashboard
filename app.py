@@ -48,52 +48,42 @@ st.markdown("""
     <style>
     .stApp {
         background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-        color: #e2e8f0;
+        color: #f8fafc; /* Brighter body text */
     }
+    /* Metric Card Styling */
     div[data-testid="stMetricValue"] {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.07);
+        backdrop-filter: blur(12px);
+        padding: 24px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
         color: #60a5fa !important;
+        font-weight: 800;
     }
+    /* Sidebar text color */
     [data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.95) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        background-color: rgba(15, 23, 42, 0.98) !important;
     }
-    .stButton>button {
-        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
-        color: white;
-        border-radius: 8px;
-        border: none;
-        padding: 0.5rem 2rem;
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label {
+        color: #cbd5e1 !important;
         font-weight: 600;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        text-transform: uppercase;
-        letter-spacing: 1px;
     }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-    }
+    /* Main Heading Glow */
     h1 {
-        background: linear-gradient(90deg, #60a5fa, #a78bfa);
+        background: linear-gradient(90deg, #60a5fa, #93c5fd, #a78bfa);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800 !important;
+        text-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
     }
-    /* Glassmorphism Login Card */
-    .login-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(20px);
-        padding: 40px;
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        text-align: center;
-        max-width: 400px;
-        margin: auto;
+    /* Tab Styling */
+    .stTabs [data-baseweb="tab"] {
+        color: #94a3b8 !important;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #60a5fa !important;
+        border-bottom-color: #60a5fa !important;
     }
     </style>
     """, unsafe_allow_html=True)
