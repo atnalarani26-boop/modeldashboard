@@ -85,21 +85,6 @@ st.markdown("""
         color: #60a5fa !important;
         border-bottom-color: #60a5fa !important;
     }
-    /* Premium Button Styling */
-    .stButton>button {
-        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%) !important;
-        color: #ffffff !important;
-        border-radius: 10px !important;
-        border: none !important;
-        padding: 0.6rem 2.5rem !important;
-        font-weight: 700 !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3) !important;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
-    }
     /* Input field styling */
     .stTextInput>div>div>input {
         background-color: rgba(255, 255, 255, 0.05) !important;
