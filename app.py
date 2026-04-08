@@ -156,20 +156,31 @@ with tab_label:
 
     if st.button("🔍 Fetch Comments"):
         if not employee_name or not api_key:
-            st.error("Please fill in Configuration in sidebar")
+            st.error("⚠️ Please enter your Name and API Key in the sidebar first.")
+        elif not video_url or not video_url.strip():
+            st.error("⚠️ Please paste a YouTube video URL above.")
         else:
             video_id = extract_video_id(video_url)
-            if video_id:
-                with st.spinner("Fetching..."):
-                    comments = fetch_comments_from_youtube(api_key, video_id)
-                    if comments:
-                        st.session_state['comments_df'] = pd.DataFrame({
-                            "comment": comments,
-                            "label": ["" for _ in comments],
-                            "video_id": [video_id for _ in comments]
-                        })
+            if not video_id:
+                st.error("❌ Invalid YouTube URL. Make sure it looks like: https://www.youtube.com/watch?v=XXXXXXXXXXX")
             else:
-                st.error("Invalid URL")
+                with st.spinner("Fetching comments from YouTube..."):
+                    comments, fetch_error = fetch_comments_from_youtube(api_key, video_id)
+
+                if fetch_error:
+                    if comments:
+                        # Partial success — show warning but keep results
+                        st.warning(fetch_error)
+                    else:
+                        st.error(fetch_error)
+
+                if comments:
+                    st.session_state['comments_df'] = pd.DataFrame({
+                        "comment": comments,
+                        "label": ["" for _ in comments],
+                        "video_id": [video_id for _ in comments]
+                    })
+                    st.success(f"✅ Fetched **{len(comments)}** comments successfully!")
 
     if 'comments_df' in st.session_state:
         df = st.session_state['comments_df']
@@ -213,7 +224,11 @@ with tab_analytics:
             all_data = read_labeled_data()
             if not all_data.empty:
                 # Calculate Metrics
-                all_data["Timestamp"] = pd.to_datetime(all_data["Timestamp"])
+                if "Timestamp" in all_data.columns:
+                    all_data["Timestamp"] = pd.to_datetime(all_data["Timestamp"])
+                else:
+                    # Create a dummy timestamp for old rows so the logic doesn't crash
+                    all_data["Timestamp"] = pd.Timestamp.now()
                 today = pd.Timestamp.now().normalize()
                 today_count = len(all_data[all_data["Timestamp"].dt.normalize() == today])
                 
