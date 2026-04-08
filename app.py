@@ -6,7 +6,7 @@ import plotly.express as px
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from youtube import extract_video_id, fetch_comments_from_youtube
-from sheets import write_label_to_sheet, read_labeled_data
+from sheets import upsert_labels_to_sheet, read_labeled_data
 from train import load_model, train_model
 
 # --- CONFIG & SECRETS ---
@@ -209,10 +209,23 @@ with tab_label:
         if st.button("💾 Save to Google Sheets"):
             labeled = edited_df[edited_df["label"] != ""]
             if not labeled.empty:
-                for _, row in labeled.iterrows():
-                    write_label_to_sheet(row["comment"], row["label"], employee_name, row["video_id"])
-                st.success("Saved! Model retraining triggered.")
-                requests.post(f"{API_URL}/train")
+                with st.spinner("Synchronizing with Google Sheets..."):
+                    # Prepare data for batch upsert
+                    rows_to_save = [
+                        {
+                            "comment": row["comment"],
+                            "label": row["label"],
+                            "employee_name": employee_name,
+                            "video_id": row["video_id"]
+                        }
+                        for _, row in labeled.iterrows()
+                    ]
+                    try:
+                        upsert_labels_to_sheet(rows_to_save)
+                        st.success(f"✅ Successfully processed {len(rows_to_save)} labels! Model retraining triggered.")
+                        requests.post(f"{API_URL}/train")
+                    except Exception as e:
+                        st.error(f"❌ Failed to save to Google Sheets: {e}")
 
 # ---------------- TAB 2: ANALYTICS ----------------
 

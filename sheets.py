@@ -5,6 +5,7 @@ import os
 import json
 import base64
 import tempfile
+from datetime import datetime
 
 # Define the scope
 SCOPE = [
@@ -39,7 +40,13 @@ def get_sheet_client():
     # 3. If we found a base64 string, decode and authorize
     if creds_b64 and len(creds_b64) > 10:
         try:
-            creds_json = json.loads(base64.b64decode(creds_b64))
+            # Self-healing: Detect if raw JSON was pasted instead of Base64
+            clean_input = creds_b64.strip()
+            if clean_input.startswith("{") and clean_input.endswith("}"):
+                creds_json = json.loads(clean_input)
+            else:
+                creds_json = json.loads(base64.b64decode(creds_b64))
+                
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, SCOPE)
             return gspread.authorize(creds)
         except Exception as e:
@@ -62,18 +69,66 @@ def get_sheet_client():
 
 def write_label_to_sheet(comment, label, employee_name, video_id, sheet_name="Sentiment Labels"):
     """
-    Append a new label to the Google Sheet.
+    Legacy single-row update (maintained for compatibility).
+    Uses the new batch logic internally for consistency.
     """
+    upsert_labels_to_sheet([{
+        "comment": comment,
+        "label": label,
+        "employee_name": employee_name,
+        "video_id": video_id
+    }], sheet_name)
+
+
+def upsert_labels_to_sheet(rows_to_save, sheet_name="Sentiment Labels"):
+    """
+    Efficiently updates existing rows or appends new ones in batch.
+    rows_to_save: List of dicts with keys [comment, label, employee_name, video_id]
+    """
+    if not rows_to_save:
+        return
+
     client = get_sheet_client()
     try:
-        sheet = client.open(sheet_name).sheet1
+        spreadsheet = client.open(sheet_name)
+        sheet = spreadsheet.sheet1
     except gspread.exceptions.SpreadsheetNotFound:
-        # Create sheet if it doesn't exist
         spreadsheet = client.create(sheet_name)
         sheet = spreadsheet.sheet1
-        sheet.append_row(["Comment", "Label", "Employee", "Video ID"])
+        sheet.append_row(["Timestamp", "Comment", "Label", "Employee", "Video ID"])
 
-    sheet.append_row([comment, label, employee_name, video_id])
+    # Fetch all current data to find duplicates locally (faster than querying API per row)
+    all_data = sheet.get_all_values()
+    headers = all_data[0] if all_data else ["Timestamp", "Comment", "Label", "Employee", "Video ID"]
+    
+    # Map comment to its row index (1-indexed for gspread)
+    # Header is row 1, data starts row 2
+    comment_to_row = {row[1]: i + 1 for i, row in enumerate(all_data) if len(row) > 1}
+
+    curr_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    new_rows = []
+    updates = []
+
+    for item in rows_to_save:
+        comment = item["comment"]
+        row_data = [curr_time, comment, item["label"], item["employee_name"], item["video_id"]]
+        
+        if comment in comment_to_row:
+            row_idx = comment_to_row[comment]
+            # range string like 'A5:E5'
+            row_range = f"A{row_idx}:E{row_idx}"
+            updates.append({'range': row_range, 'values': [row_data]})
+        else:
+            new_rows.append(row_data)
+
+    # Perform updates in bulk
+    if updates:
+        sheet.batch_update(updates)
+    
+    # Append new rows in one call
+    if new_rows:
+        sheet.append_rows(new_rows)
 
 
 def read_labeled_data(sheet_name="Sentiment Labels"):
@@ -87,7 +142,7 @@ def read_labeled_data(sheet_name="Sentiment Labels"):
         return pd.DataFrame(data)
     except Exception as e:
         print(f"Error reading sheet: {e}")
-        return pd.DataFrame(columns=["Comment", "Label", "Employee", "Video ID"])
+        return pd.DataFrame(columns=["Timestamp", "Comment", "Label", "Employee", "Video ID"])
 
 
 if __name__ == "__main__":
