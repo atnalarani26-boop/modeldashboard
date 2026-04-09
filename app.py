@@ -268,12 +268,15 @@ with tab_analytics:
                 st.divider()
                 st.subheader("🔠 Key Sentiment Keywords")
                 text = " ".join(all_data["Comment"].astype(str).tolist())
-                if text.strip():
-                    wc = WordCloud(width=800, height=400, background_color="white", colormap="Blues").generate(text)
-                    plt.figure(figsize=(10, 5))
-                    plt.imshow(wc)
-                    plt.axis("off")
-                    st.pyplot(plt)
+                if text.strip() and len(text.split()) > 1:
+                    try:
+                        wc = WordCloud(width=800, height=400, background_color="white", colormap="Blues").generate(text)
+                        plt.figure(figsize=(10, 5))
+                        plt.imshow(wc)
+                        plt.axis("off")
+                        st.pyplot(plt)
+                    except ValueError:
+                        st.info("Not enough unique words to generate word cloud. Keep labeling more comments!")
                 else:
                     st.info("Insufficient data for word cloud.")
             else:
