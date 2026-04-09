@@ -149,14 +149,14 @@ def read_labeled_data(sheet_name="Sentiment Labels"):
     """
     Read all labeled data from the sheet for training.
     """
-    client = _id = get_sheet_id()
+    client = get_sheet_client()
+    try:
+        sheet_id = get_sheet_id()
         sheet = client.open_by_key(sheet_id).sheet1
         data = sheet.get_all_records()
         return pd.DataFrame(data)
     except Exception as e:
-        print(f"Error reading sheet with ID {get_sheet_id()}
-    except Exception as e:
-        print(f"Error reading sheet: {e}")
+        print(f"Error reading sheet with ID {get_sheet_id()}: {e}")
         return pd.DataFrame(columns=["Timestamp", "Comment", "Label", "Employee", "Video ID"])
 
 
