@@ -223,7 +223,10 @@ with tab_label:
                     try:
                         upsert_labels_to_sheet(rows_to_save)
                         st.success(f"✅ Successfully processed {len(rows_to_save)} labels! Model retraining triggered.")
-                        requests.post(f"{API_URL}/train")
+                        try:
+                            requests.post(f"{API_URL}/train", timeout=2)
+                        except Exception as api_err:
+                            st.warning("⚠️ Local training API not available. Model will retrain on next prediction.")
                     except Exception as e:
                         st.error(f"❌ Failed to save to Google Sheets: {e}")
 
