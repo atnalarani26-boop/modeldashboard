@@ -51,5 +51,5 @@ jobs:
             - **Triggered By**: ${{ github.actor }}
             
             View full details here: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          to: ccpssm1@gmail.com
+          to: chinninedri@gmail.com
           from: "GitHub Actions Bot"

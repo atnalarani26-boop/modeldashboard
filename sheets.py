@@ -20,6 +20,19 @@ CREDENTIALS_FILE = "credentials.json"
 
 import streamlit as st
 
+# Get Sheet ID from Streamlit Secrets or environment
+def get_sheet_id():
+    """
+    Get the Google Sheet ID from Streamlit Secrets or environment variables.
+    """
+    try:
+        if "SHEET_ID" in st.secrets:
+            return st.secrets["SHEET_ID"]
+    except:
+        pass
+    
+    return os.environ.get("SHEET_ID", "1HJdHGqjCV0AgP2z2d1D2cMED1yZtsWJnanX1egcB05E")
+
 def get_sheet_client():
     """
     Authenticate and return the gspread client with maximum robustness.
@@ -90,12 +103,14 @@ def upsert_labels_to_sheet(rows_to_save, sheet_name="Sentiment Labels"):
 
     client = get_sheet_client()
     try:
-        spreadsheet = client.open(sheet_name)
+        # Open spreadsheet by ID (more reliable than by name)
+        sheet_id = get_sheet_id()
+        spreadsheet = client.open_by_key(sheet_id)
         sheet = spreadsheet.sheet1
     except gspread.exceptions.SpreadsheetNotFound:
-        spreadsheet = client.create(sheet_name)
-        sheet = spreadsheet.sheet1
-        sheet.append_row(["Timestamp", "Comment", "Label", "Employee", "Video ID"])
+        st.error(f"Could not find spreadsheet with ID: {get_sheet_id()}")
+        st.error("Please check that: 1) The Sheet ID is correct, 2) The service account has access, 3) The new email is shared with Editor permissions")
+        return
 
     # Fetch all current data to find duplicates locally (faster than querying API per row)
     all_data = sheet.get_all_values()
@@ -135,11 +150,12 @@ def read_labeled_data(sheet_name="Sentiment Labels"):
     """
     Read all labeled data from the sheet for training.
     """
-    client = get_sheet_client()
-    try:
-        sheet = client.open(sheet_name).sheet1
+    client = _id = get_sheet_id()
+        sheet = client.open_by_key(sheet_id).sheet1
         data = sheet.get_all_records()
         return pd.DataFrame(data)
+    except Exception as e:
+        print(f"Error reading sheet with ID {get_sheet_id()}
     except Exception as e:
         print(f"Error reading sheet: {e}")
         return pd.DataFrame(columns=["Timestamp", "Comment", "Label", "Employee", "Video ID"])
