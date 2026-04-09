@@ -107,9 +107,8 @@ def upsert_labels_to_sheet(rows_to_save, sheet_name="Sentiment Labels"):
         sheet_id = get_sheet_id()
         spreadsheet = client.open_by_key(sheet_id)
         sheet = spreadsheet.sheet1
-    except gspread.exceptions.SpreadsheetNotFound:
-        st.error(f"Could not find spreadsheet with ID: {get_sheet_id()}")
-        st.error("Please check that: 1) The Sheet ID is correct, 2) The service account has access, 3) The new email is shared with Editor permissions")
+    except Exception as e:
+        print(f"Error accessing spreadsheet: {e}")
         return
 
     # Fetch all current data to find duplicates locally (faster than querying API per row)
